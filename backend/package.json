@@ -1,0 +1,63 @@
+{
+  "name": "crdt",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "nodemon --exec ts-node src/server.ts",
+    "test": "jest"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/tests"
+    ],
+    "transform": {
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "tsconfig": "tsconfig.json"
+        }
+      ]
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@dax-side/jwt-abstraction": "^0.2.6",
+    "@prisma/adapter-pg": "^7.5.0",
+    "@prisma/client": "^7.5.0",
+    "@types/nodemailer": "^7.0.11",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "morgan": "^1.10.1",
+    "nodemailer": "^8.0.3",
+    "pg": "^8.20.0",
+    "prisma": "^7.5.0",
+    "uuid": "^13.0.0",
+    "winston": "^3.19.0",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^25.5.0",
+    "@types/pg": "^8.18.0",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.1",
+    "jest": "^30.3.0",
+    "nodemon": "^3.1.14",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

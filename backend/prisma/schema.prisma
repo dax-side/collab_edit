@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  ownedDocuments Document[]
+  documentAccess DocumentAccess[]
+
+  @@map("users")
+}
+
+model Document {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  owner  User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ops    Op[]
+  access DocumentAccess[]
+  shares ShareToken[]
+
+  @@map("documents")
+}
+
+model DocumentAccess {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  role       String   @default("editor") // "editor" or "viewer"
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentId])
+  @@map("document_access")
+}
+
+model ShareToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  token      String   @unique
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("share_tokens")
+}
+
+model Op {
+  id        BigInt   @id @default(autoincrement())
+  docId     String   @map("doc_id") @db.Uuid
+  op        Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  document Document @relation(fields: [docId], references: [id], onDelete: Cascade)
+
+  @@index([docId, id])
+  @@map("ops")
+}

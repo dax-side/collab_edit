@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { sendSuccess, sendError } from '../shared/utils/response.util';
 import { SuccessMessages, ErrorMessages } from '../shared/messages';
+import { logger } from '../shared/utils/logger';
 import {
   inviteUser,
   revokeAccess,
@@ -23,7 +24,7 @@ export async function invite(req: Request, res: Response): Promise<void> {
       sendError(res, err.statusCode, err.message);
       return;
     }
-    console.error('Invite error:', err);
+    logger.error('Invite error:', err);
     sendError(res, 500, ErrorMessages.INTERNAL_ERROR);
   }
 }
@@ -41,7 +42,7 @@ export async function revoke(req: Request, res: Response): Promise<void> {
       sendError(res, err.statusCode, err.message);
       return;
     }
-    console.error('Revoke access error:', err);
+    logger.error('Revoke access error:', err);
     sendError(res, 500, ErrorMessages.INTERNAL_ERROR);
   }
 }
@@ -59,7 +60,7 @@ export async function createLink(req: Request, res: Response): Promise<void> {
       sendError(res, err.statusCode, err.message);
       return;
     }
-    console.error('Share link error:', err);
+    logger.error('Share link error:', err);
     sendError(res, 500, ErrorMessages.INTERNAL_ERROR);
   }
 }
@@ -76,7 +77,7 @@ export async function getShared(req: Request, res: Response): Promise<void> {
       sendError(res, err.statusCode, err.message);
       return;
     }
-    console.error('Shared document access error:', err);
+    logger.error('Shared document access error:', err);
     sendError(res, 500, ErrorMessages.INTERNAL_ERROR);
   }
 }
@@ -93,7 +94,7 @@ export async function getAccessList(req: Request, res: Response): Promise<void> 
       sendError(res, err.statusCode, err.message);
       return;
     }
-    console.error('List access error:', err);
+    logger.error('List access error:', err);
     sendError(res, 500, ErrorMessages.INTERNAL_ERROR);
   }
 }

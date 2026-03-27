@@ -12,10 +12,24 @@ model User {
   password  String
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  ownedDocuments Document[]
-  documentAccess DocumentAccess[]
+  ownedDocuments  Document[]
+  documentAccess  DocumentAccess[]
+  passwordResets  PasswordResetToken[]
 
   @@map("users")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }
 
 model Document {

@@ -3,9 +3,10 @@ import { useAuth } from '../hooks/useAuth';
 
 interface AuthPageProps {
   onBack?: () => void;
+  onForgotPassword?: () => void;
 }
 
-export function AuthPage({ onBack }: AuthPageProps) {
+export function AuthPage({ onBack, onForgotPassword }: AuthPageProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -97,6 +98,15 @@ export function AuthPage({ onBack }: AuthPageProps) {
               disabled={submitting}
               autoComplete={isLogin ? 'current-password' : 'new-password'}
             />
+            {isLogin && onForgotPassword && (
+              <button
+                type="button"
+                onClick={onForgotPassword}
+                className="text-xs text-gray-600 hover:underline mt-2"
+              >
+                Forgot password?
+              </button>
+            )}
           </div>
 
           {localError && (

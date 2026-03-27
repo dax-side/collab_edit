@@ -5,17 +5,119 @@ import { PresenceList } from './components/PresenceList';
 import { AuthPage } from './components/AuthPage';
 import { LandingPage } from './components/LandingPage';
 import { ShareModal } from './components/ShareModal';
+import { ForgotPasswordPage } from './components/ForgotPasswordPage';
+import { ResetPasswordPage } from './components/ResetPasswordPage';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useAuth } from './hooks/useAuth';
 import { CRDTDocument } from './crdt/document';
 import { type Op } from './crdt/types';
 
 const CLIENT_ID = uuid();
-const WS_URL = `ws://localhost:3000/ws`;
+
+const getWsUrl = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}/ws`;
+};
+
+const CURSOR_COLORS = [
+  '#3b82f6', 
+  '#10b981', 
+  '#f59e0b', 
+  '#ef4444', 
+  '#8b5cf6', 
+  '#ec4899', 
+];
 
 interface DocMeta {
   id: string;
   createdAt: string;
+}
+
+interface RemoteCursor {
+  clientId: string;
+  position: number;
+  color: string;
+}
+
+function CursorOverlay({
+  text,
+  cursors,
+  textareaRef,
+}: {
+  text: string;
+  cursors: Map<string, RemoteCursor>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+}) {
+  const [cursorPositions, setCursorPositions] = useState<
+    { clientId: string; top: number; left: number; color: string }[]
+  >([]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const computePositions = () => {
+      const positions: { clientId: string; top: number; left: number; color: string }[] = [];
+      const style = getComputedStyle(textarea);
+      const lineHeight = parseFloat(style.lineHeight) || 24;
+      const paddingTop = parseFloat(style.paddingTop) || 0;
+      const paddingLeft = parseFloat(style.paddingLeft) || 0;
+      const fontSize = parseFloat(style.fontSize) || 16;
+
+      const charWidth = fontSize * 0.6;
+
+      cursors.forEach((cursor) => {
+        const textBefore = text.slice(0, cursor.position);
+        const lines = textBefore.split('\n');
+        const lineIndex = lines.length - 1;
+        const colIndex = lines[lines.length - 1].length;
+
+        const top = paddingTop + lineIndex * lineHeight - textarea.scrollTop;
+        const left = paddingLeft + colIndex * charWidth;
+
+        if (top >= 0 && top < textarea.clientHeight) {
+          positions.push({
+            clientId: cursor.clientId,
+            top,
+            left,
+            color: cursor.color,
+          });
+        }
+      });
+
+      setCursorPositions(positions);
+    };
+
+    computePositions();
+
+    textarea.addEventListener('scroll', computePositions);
+    return () => textarea.removeEventListener('scroll', computePositions);
+  }, [text, cursors, textareaRef]);
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {cursorPositions.map(({ clientId, top, left, color }) => (
+        <div
+          key={clientId}
+          className="absolute w-0.5 transition-all duration-100"
+          style={{
+            top: `${top}px`,
+            left: `${left}px`,
+            height: '1.2em',
+            backgroundColor: color,
+          }}
+        >
+          {/* Small label showing user */}
+          <div
+            className="absolute -top-5 left-0 text-[10px] font-bold px-1 rounded whitespace-nowrap"
+            style={{ backgroundColor: color, color: 'white' }}
+          >
+            User
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function Editor() {
@@ -25,11 +127,22 @@ function Editor() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [text, setText] = useState('');
   const [clients, setClients] = useState<string[]>([]);
+  const [cursors, setCursors] = useState<Map<string, RemoteCursor>>(new Map());
   const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
 
   const docRef = useRef(new CRDTDocument());
   const seqRef = useRef(0);
   const prevTextRef = useRef('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const colorMapRef = useRef<Map<string, string>>(new Map());
+
+  const getClientColor = useCallback((clientId: string) => {
+    if (!colorMapRef.current.has(clientId)) {
+      const index = colorMapRef.current.size % CURSOR_COLORS.length;
+      colorMapRef.current.set(clientId, CURSOR_COLORS[index]);
+    }
+    return colorMapRef.current.get(clientId)!;
+  }, []);
 
   const fetchDocs = useCallback(async () => {
     try {
@@ -66,14 +179,39 @@ function Editor() {
 
     } else if (msg.type === 'presence') {
       setClients(msg.clients as string[]);
+      setCursors(prev => {
+        const updated = new Map(prev);
+        const currentClients = new Set(msg.clients as string[]);
+        for (const clientId of updated.keys()) {
+          if (!currentClients.has(clientId)) {
+            updated.delete(clientId);
+          }
+        }
+        return updated;
+      });
+
+    } else if (msg.type === 'cursor') {
+      const clientId = msg.clientId as string;
+      const position = msg.position as number;
+      if (clientId !== CLIENT_ID) {
+        setCursors(prev => {
+          const updated = new Map(prev);
+          updated.set(clientId, {
+            clientId,
+            position,
+            color: getClientColor(clientId),
+          });
+          return updated;
+        });
+      }
 
     } else if (msg.type === 'error') {
       console.error('[server error]', msg.message);
     }
-  }, []);
+  }, [getClientColor]);
 
   const { send } = useWebSocket(
-    activeDocId ? WS_URL : null,
+    activeDocId ? getWsUrl() : null,
     handleMessage,
     () => {
       setWsStatus('connected');
@@ -91,6 +229,8 @@ function Editor() {
     setText('');
     prevTextRef.current = '';
     setClients([]);
+    setCursors(new Map());
+    colorMapRef.current.clear();
   }, [activeDocId]);
 
   useEffect(() => {
@@ -165,6 +305,12 @@ function Editor() {
     prevTextRef.current = t;
   }, [activeDocId, send]);
 
+  const handleSelect = useCallback(() => {
+    if (!activeDocId || !textareaRef.current) return;
+    const position = textareaRef.current.selectionStart;
+    send({ type: 'cursor', docId: activeDocId, position });
+  }, [activeDocId, send]);
+
   return (
     <div className="flex flex-col h-screen bg-[#f5f1e8] text-gray-900">
       <div className="flex flex-1 overflow-hidden">
@@ -203,13 +349,25 @@ function Editor() {
                   }`} title={wsStatus} />
                 </span>
               </div>
-              <textarea
-                className="flex-1 resize-none p-6 text-base text-gray-800 focus:outline-none bg-white"
-                value={text}
-                onChange={handleChange}
-                placeholder="Start typing…"
-                spellCheck={false}
-              />
+              <div className="flex-1 relative overflow-hidden">
+                <textarea
+                  ref={textareaRef}
+                  className="w-full h-full resize-none p-6 text-base text-gray-800 focus:outline-none bg-white font-mono"
+                  value={text}
+                  onChange={handleChange}
+                  onSelect={handleSelect}
+                  onKeyUp={handleSelect}
+                  onClick={handleSelect}
+                  placeholder="Start typing…"
+                  spellCheck={false}
+                />
+                {/* Remote cursor indicators */}
+                <CursorOverlay
+                  text={text}
+                  cursors={cursors}
+                  textareaRef={textareaRef}
+                />
+              </div>
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
@@ -221,7 +379,11 @@ function Editor() {
         {/* Sidebar */}
         <div className="w-56 shrink-0 border-l border-gray-200 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-3">
-            <PresenceList clients={clients} myClientId={CLIENT_ID} />
+            <PresenceList
+              clients={clients}
+              myClientId={CLIENT_ID}
+              clientColors={colorMapRef.current}
+            />
           </div>
         </div>
       </div>
@@ -239,7 +401,17 @@ function Editor() {
 
 export default function App() {
   const { user, loading } = useAuth();
-  const [showAuth, setShowAuth] = useState(false);
+  const [authView, setAuthView] = useState<'landing' | 'auth' | 'forgot' | 'reset'>('landing');
+  const [resetToken, setResetToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token && window.location.pathname === '/reset-password') {
+      setResetToken(token);
+      setAuthView('reset');
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -250,10 +422,39 @@ export default function App() {
   }
 
   if (!user) {
-    if (!showAuth) {
-      return <LandingPage onGetStarted={() => setShowAuth(true)} />;
+    if (authView === 'reset' && resetToken) {
+      return (
+        <ResetPasswordPage
+          token={resetToken}
+          onSuccess={() => {
+            setResetToken(null);
+            setAuthView('auth');
+
+            window.history.replaceState({}, '', '/');
+          }}
+          onBack={() => {
+            setResetToken(null);
+            setAuthView('auth');
+            window.history.replaceState({}, '', '/');
+          }}
+        />
+      );
     }
-    return <AuthPage onBack={() => setShowAuth(false)} />;
+
+    if (authView === 'forgot') {
+      return <ForgotPasswordPage onBack={() => setAuthView('auth')} />;
+    }
+
+    if (authView === 'auth') {
+      return (
+        <AuthPage
+          onBack={() => setAuthView('landing')}
+          onForgotPassword={() => setAuthView('forgot')}
+        />
+      );
+    }
+
+    return <LandingPage onGetStarted={() => setAuthView('auth')} />;
   }
 
   return <Editor />;

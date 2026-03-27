@@ -1,11 +1,14 @@
 import type { Request, Response } from 'express';
 import { sendSuccess, sendError } from '../shared/utils/response.util';
 import { SuccessMessages, ErrorMessages } from '../shared/messages';
+import { logger } from '../shared/utils/logger';
 import {
   registerUser,
   loginUser,
   refreshUserTokens,
   getUserById,
+  requestPasswordReset,
+  resetPassword as resetPasswordService,
   AuthServiceError,
 } from '../services/auth.service';
 
@@ -30,7 +33,7 @@ export async function register(req: Request, res: Response): Promise<void> {
       sendError(res, err.statusCode, err.message);
       return;
     }
-    console.error('Register error:', err);
+    logger.error('Register error:', err);
     sendError(res, 500, ErrorMessages.INTERNAL_ERROR);
   }
 }
@@ -49,7 +52,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       sendError(res, err.statusCode, err.message);
       return;
     }
-    console.error('Login error:', err);
+    logger.error('Login error:', err);
     sendError(res, 500, ErrorMessages.INTERNAL_ERROR);
   }
 }
@@ -87,6 +90,36 @@ export async function getMe(req: Request, res: Response): Promise<void> {
       sendError(res, err.statusCode, err.message);
       return;
     }
+    sendError(res, 500, ErrorMessages.INTERNAL_ERROR);
+  }
+}
+
+export async function forgotPassword(req: Request, res: Response): Promise<void> {
+  try {
+    const { email } = req.body;
+    await requestPasswordReset(email);
+    sendSuccess(res, 200, 'If an account exists with that email, a reset link has been sent', null);
+  } catch (err) {
+    if (err instanceof AuthServiceError) {
+      sendError(res, err.statusCode, err.message);
+      return;
+    }
+    logger.error('Forgot password error:', err);
+    sendError(res, 500, ErrorMessages.INTERNAL_ERROR);
+  }
+}
+
+export async function resetPassword(req: Request, res: Response): Promise<void> {
+  try {
+    const { token, password } = req.body;
+    await resetPasswordService(token, password);
+    sendSuccess(res, 200, 'Password has been reset successfully', null);
+  } catch (err) {
+    if (err instanceof AuthServiceError) {
+      sendError(res, err.statusCode, err.message);
+      return;
+    }
+    logger.error('Reset password error:', err);
     sendError(res, 500, ErrorMessages.INTERNAL_ERROR);
   }
 }

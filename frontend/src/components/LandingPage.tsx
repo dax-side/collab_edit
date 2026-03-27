@@ -79,7 +79,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               </button>
 
               <p className="text-sm mt-6 text-gray-600">
-                No credit card · 14-day trial · 2,400+ teams
+                No credit card required · Free tier available
               </p>
             </div>
 
@@ -102,9 +102,9 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 </div>
 
                 <div className="p-6">
-                  <div className="text-4xl font-bold mb-2">2.4k</div>
+                  <div className="text-4xl font-bold mb-2">100%</div>
                   <div className="text-xs font-bold uppercase tracking-wide text-gray-600">
-                    Teams
+                    Open source
                   </div>
                 </div>
               </div>
@@ -329,7 +329,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             Get started free
           </button>
           <p className="text-base text-gray-400 mt-8">
-            2,400+ teams editing together · Cancel anytime
+            Built with custom CRDT · No libraries
           </p>
         </div>
       </section>

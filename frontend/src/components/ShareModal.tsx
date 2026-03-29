@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
+import { API_BASE_URL } from '../config';
 
 interface Collaborator {
   user: {
@@ -31,7 +32,7 @@ export function ShareModal({ documentId, onClose }: ShareModalProps) {
 
   async function loadCollaborators() {
     try {
-      const res = await fetch(`/documents/${documentId}/access`, {
+      const res = await fetch(`${API_BASE_URL}/documents/${documentId}/access`, {
         credentials: 'include',
       });
       if (res.ok) {
@@ -59,7 +60,7 @@ export function ShareModal({ documentId, onClose }: ShareModalProps) {
     setSubmitting(true);
 
     try {
-      const res = await fetch(`/documents/${documentId}/invite`, {
+      const res = await fetch(`${API_BASE_URL}/documents/${documentId}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -86,7 +87,7 @@ export function ShareModal({ documentId, onClose }: ShareModalProps) {
     if (!confirm('Revoke access for this user?')) return;
 
     try {
-      const res = await fetch(`/documents/${documentId}/access/${userId}`, {
+      const res = await fetch(`${API_BASE_URL}/documents/${documentId}/access/${userId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -105,7 +106,7 @@ export function ShareModal({ documentId, onClose }: ShareModalProps) {
     setShareLink('');
 
     try {
-      const res = await fetch(`/documents/${documentId}/share`, {
+      const res = await fetch(`${API_BASE_URL}/documents/${documentId}/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

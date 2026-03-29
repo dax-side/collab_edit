@@ -3,7 +3,6 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import http from 'http';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
-import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { store } from './store/document.store';
 import { handleMessage, handleDisconnect } from './websocket/handlers';
@@ -26,16 +25,23 @@ const allowedOrigins = [
 
 const app = express();
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-}));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Vary', 'Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  }
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).send();
+    return;
+  }
+
+  next();
+});
 
 app.use(express.json());
 app.use(cookieParser());

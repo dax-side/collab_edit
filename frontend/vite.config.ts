@@ -7,7 +7,8 @@ const BACKEND_URL = process.env.VITE_BACKEND_URL || 'http://localhost:3000'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    allowedHosts: true,
+    host: '0.0.0.0',
+    port: 5173,
     proxy: {
       '/auth': BACKEND_URL,
       '/documents': BACKEND_URL,
@@ -18,16 +19,8 @@ export default defineConfig({
     },
   },
   preview: {
-    port: 8080,
-    host: true,
-    allowedHosts: true,
-    proxy: {
-      '/auth': BACKEND_URL,
-      '/documents': BACKEND_URL,
-      '/ws': {
-        target: BACKEND_URL.replace('http', 'ws'),
-        ws: true,
-      },
-    },
+    host: '0.0.0.0',
+    port: Number(process.env.PORT) || 8080,
+    allowedHosts: ['collabeditf.pxxl.click'],
   },
 })

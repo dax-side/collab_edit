@@ -103,9 +103,9 @@ wss.on('connection', (ws) => {
   });
 });
 
-httpServer.listen(PORT, () => {
-  logger.info(`CollabEdit server running on http://localhost:${PORT}`);
-  logger.info(`WebSocket endpoint: ws://localhost:${PORT}/ws`);
+httpServer.listen(PORT, '0.0.0.0', () => {
+  logger.info(`CollabEdit server running on http://0.0.0.0:${PORT}`);
+  logger.info(`WebSocket endpoint: ws://0.0.0.0:${PORT}/ws`);
 });
 
 export { httpServer, wss };

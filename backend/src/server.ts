@@ -20,6 +20,11 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('short', { stream: morganStream }));
+
+app.get('/health', (_req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.use('/auth', authRouter);
 app.use('/', sharingRouter);
 

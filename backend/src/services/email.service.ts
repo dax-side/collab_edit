@@ -145,7 +145,8 @@ export async function sendPasswordResetEmail(
 ): Promise<boolean> {
   try {
     const transport = await getTransporter();
-    const resetUrl = `${APP_URL}/reset-password?token=${resetToken}`;
+    const appBaseUrl = (APP_URL ?? '').replace(/\/+$/, '');
+    const resetUrl = `${appBaseUrl}/reset-password?token=${resetToken}`;
 
     const info = await transport.sendMail({
       from: EMAIL_FROM,

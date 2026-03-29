@@ -409,7 +409,8 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
-    if (token && window.location.pathname === '/reset-password') {
+    const normalizedPath = window.location.pathname.replace(/\/+$/, '').replace(/\/{2,}/g, '/');
+    if (token && normalizedPath === '/reset-password') {
       setResetToken(token);
       setAuthView('reset');
     }

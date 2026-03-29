@@ -3,6 +3,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import http from 'http';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { store } from './store/document.store';
 import { handleMessage, handleDisconnect } from './websocket/handlers';
@@ -16,7 +17,26 @@ import { authenticate } from './middleware/auth.middleware';
 
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://collabeditf.pxxl.click',
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+];
+
 const app = express();
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('short', { stream: morganStream }));

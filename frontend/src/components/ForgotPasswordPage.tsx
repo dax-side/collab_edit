@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { API_BASE_URL } from '../config';
 
 interface ForgotPasswordPageProps {
   onBack: () => void;
@@ -22,7 +23,7 @@ export function ForgotPasswordPage({ onBack }: ForgotPasswordPageProps) {
     setSubmitting(true);
 
     try {
-      const res = await fetch('/auth/forgot-password', {
+      const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

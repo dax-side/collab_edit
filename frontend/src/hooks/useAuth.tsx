@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { API_BASE_URL } from '../config';
 
 interface User {
   id: string;
@@ -28,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function checkAuth() {
     try {
-      const res = await fetch('/auth/me', { credentials: 'include' });
+      const res = await fetch(`${API_BASE_URL}/auth/me`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setUser(data.data.user);
@@ -42,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(email: string, password: string) {
     setError(null);
     try {
-      const res = await fetch('/auth/login', {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -66,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function register(email: string, password: string) {
     setError(null);
     try {
-      const res = await fetch('/auth/register', {
+      const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -89,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function logout() {
     try {
-      await fetch('/auth/logout', {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       });

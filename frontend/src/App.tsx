@@ -11,12 +11,14 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { useAuth } from './hooks/useAuth';
 import { CRDTDocument } from './crdt/document';
 import { type Op } from './crdt/types';
+import { API_BASE_URL } from './config';
 
 const CLIENT_ID = uuid();
 
 const getWsUrl = () => {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${window.location.host}/ws`;
+  const backendUrl = API_BASE_URL || `${window.location.protocol}//${window.location.host}`;
+  const wsUrl = backendUrl.replace(/^http/, 'ws');
+  return `${wsUrl}/ws`;
 };
 
 const CURSOR_COLORS = [
@@ -146,7 +148,7 @@ function Editor() {
 
   const fetchDocs = useCallback(async () => {
     try {
-      const res = await fetch('/documents', { credentials: 'include' });
+      const res = await fetch(`${API_BASE_URL}/documents`, { credentials: 'include' });
       if (!res.ok) return;
       const body = await res.json();
       setDocs(body.data ?? body);
@@ -241,7 +243,7 @@ function Editor() {
 
   const createDoc = useCallback(async () => {
     try {
-      const res = await fetch('/documents', {
+      const res = await fetch(`${API_BASE_URL}/documents`, {
         method: 'POST',
         credentials: 'include',
       });

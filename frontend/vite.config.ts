@@ -20,7 +20,7 @@ export default defineConfig({
   preview: {
     port: 8080,
     host: true,
-    allowedHosts: ['collabeditf.pxxl.click', 'localhost'],
+    allowedHosts: true,
     proxy: {
       '/auth': BACKEND_URL,
       '/documents': BACKEND_URL,

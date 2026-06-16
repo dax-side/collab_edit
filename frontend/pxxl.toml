@@ -1,0 +1,4 @@
+[build]
+install = "npm install"
+command = "npm run build"
+output = "dist"

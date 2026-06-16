@@ -4,10 +4,12 @@ import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './hooks/useAuth.tsx'
 
+const app = (
+  <AuthProvider>
+    <App />
+  </AuthProvider>
+)
+
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
-  </StrictMode>,
+  import.meta.env.DEV ? app : <StrictMode>{app}</StrictMode>,
 )

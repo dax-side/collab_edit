@@ -6,7 +6,6 @@ import {
   registerUser,
   loginUser,
   refreshUserTokens,
-  getUserById,
   requestPasswordReset,
   resetPassword as resetPasswordService,
   AuthServiceError,
@@ -81,17 +80,18 @@ export async function refresh(req: Request, res: Response): Promise<void> {
   }
 }
 
-export async function getMe(req: Request, res: Response): Promise<void> {
-  try {
-    const user = await getUserById(req.user!.userId);
-    sendSuccess(res, 200, 'User retrieved', { user });
-  } catch (err) {
-    if (err instanceof AuthServiceError) {
-      sendError(res, err.statusCode, err.message);
-      return;
-    }
-    sendError(res, 500, ErrorMessages.INTERNAL_ERROR);
+export function getMe(req: Request, res: Response): void {
+  if (!req.user) {
+    sendError(res, 401, ErrorMessages.UNAUTHORIZED);
+    return;
   }
+
+  sendSuccess(res, 200, 'User retrieved', {
+    user: {
+      id: req.user.userId,
+      email: req.user.email,
+    },
+  });
 }
 
 export async function forgotPassword(req: Request, res: Response): Promise<void> {

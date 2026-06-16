@@ -142,11 +142,14 @@ CollabEdit
 export async function sendPasswordResetEmail(
   toEmail: string,
   resetToken: string,
+  expiresInMinutes: number,
 ): Promise<boolean> {
   try {
     const transport = await getTransporter();
     const appBaseUrl = (APP_URL ?? '').replace(/\/+$/, '');
     const resetUrl = `${appBaseUrl}/reset-password?token=${resetToken}`;
+    const expiryUnit = expiresInMinutes === 1 ? 'minute' : 'minutes';
+    const expiryLabel = `${expiresInMinutes} ${expiryUnit}`;
 
     const info = await transport.sendMail({
       from: EMAIL_FROM,
@@ -161,7 +164,7 @@ Someone requested a password reset for this email. Click the link below to set a
 
 ${resetUrl}
 
-This link expires in 1 hour.
+This link expires in ${expiryLabel}.
 
 Didn't request this? Ignore this email.
 
@@ -203,8 +206,8 @@ CollabEdit
               <a href="${resetUrl}" style="display: inline-block; padding: 14px 28px; background-color: #f4d03f; color: #111; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; text-decoration: none; border: 0;">
                 Reset Password
               </a>
-              <p style="margin: 24px 0 0 0; font-size: 13px; color: #666;">
-                This link expires in 1 hour.
+              <p style="margin: 16px 0 0 0; font-size: 13px; color: #666;">
+                This link expires in ${expiryLabel}.
               </p>
             </td>
           </tr>

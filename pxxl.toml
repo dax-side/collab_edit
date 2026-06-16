@@ -1,4 +1,7 @@
 [build]
-install = "npm install"
-command = "npm run build"
-output = "dist"
+baseDirectory = "frontend"
+framework = "vite"
+packageManager = "npm"
+installCommand = "npm install"
+buildCommand = "npm run build"
+outputDirectory = "dist"

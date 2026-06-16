@@ -3,10 +3,28 @@ import crypto from 'crypto';
 import { prisma } from '../config/database';
 import { createTokens, refreshTokens as refreshJwtTokens } from '../config/jwt';
 import { ErrorMessages } from '../shared/messages';
+import { logger } from '../shared/utils/logger';
 import { sendPasswordResetEmail } from './email.service';
 
 const SALT_ROUNDS = 10;
-const RESET_TOKEN_EXPIRY_HOURS = 1;
+const RESET_TOKEN_BYTES = 32;
+const DEFAULT_RESET_TOKEN_EXPIRY_MINUTES = 60;
+const parsedResetTokenExpiryMinutes = Number.parseInt(
+  process.env.PASSWORD_RESET_TOKEN_EXPIRY_MINUTES ?? `${DEFAULT_RESET_TOKEN_EXPIRY_MINUTES}`,
+  10,
+);
+const RESET_TOKEN_EXPIRY_MINUTES = Number.isFinite(parsedResetTokenExpiryMinutes) && parsedResetTokenExpiryMinutes > 0
+  ? parsedResetTokenExpiryMinutes
+  : DEFAULT_RESET_TOKEN_EXPIRY_MINUTES;
+
+function hashResetToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+function isResetTokenExpired(createdAt: Date): boolean {
+  const expiresAt = createdAt.getTime() + RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000;
+  return Date.now() > expiresAt;
+}
 
 export interface UserData {
   id: string;
@@ -120,23 +138,30 @@ export async function requestPasswordReset(email: string): Promise<void> {
     return;
   }
 
-  await prisma.passwordResetToken.updateMany({
-    where: { userId: user.id, usedAt: null },
-    data: { usedAt: new Date() },
+  await prisma.passwordResetToken.deleteMany({
+    where: { userId: user.id },
   });
 
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
+  const token = crypto.randomBytes(RESET_TOKEN_BYTES).toString('hex');
+  const tokenHash = hashResetToken(token);
 
   await prisma.passwordResetToken.create({
     data: {
       userId: user.id,
-      token,
-      expiresAt,
+      tokenHash,
     },
   });
 
-  await sendPasswordResetEmail(email, token);
+  // Do not block HTTP response on SMTP latency.
+  void sendPasswordResetEmail(email, token, RESET_TOKEN_EXPIRY_MINUTES)
+    .then((sent) => {
+      if (!sent) {
+        logger.warn(`Password reset email was not sent for ${email}`);
+      }
+    })
+    .catch((err) => {
+      logger.error(`Unexpected password reset email error for ${email}:`, err);
+    });
 }
 
 export async function resetPassword(token: string, newPassword: string): Promise<void> {
@@ -148,21 +173,19 @@ export async function resetPassword(token: string, newPassword: string): Promise
     throw new AuthServiceError(400, 'Password must be at least 6 characters');
   }
 
+  const tokenHash = hashResetToken(token);
+
   const resetToken = await prisma.passwordResetToken.findUnique({
-    where: { token },
-    include: { user: true },
+    where: { tokenHash },
   });
 
   if (!resetToken) {
-    throw new AuthServiceError(400, 'Invalid or expired reset token');
+    throw new AuthServiceError(400, 'Invalid reset token');
   }
 
-  if (resetToken.usedAt) {
-    throw new AuthServiceError(400, 'This reset link has already been used');
-  }
-
-  if (resetToken.expiresAt < new Date()) {
-    throw new AuthServiceError(400, 'This reset link has expired');
+  if (isResetTokenExpired(resetToken.createdAt)) {
+    await prisma.passwordResetToken.delete({ where: { id: resetToken.id } }).catch(() => undefined);
+    throw new AuthServiceError(400, ErrorMessages.INVALID_TOKEN);
   }
 
   const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
@@ -172,9 +195,8 @@ export async function resetPassword(token: string, newPassword: string): Promise
       where: { id: resetToken.userId },
       data: { password: hashedPassword },
     }),
-    prisma.passwordResetToken.update({
+    prisma.passwordResetToken.delete({
       where: { id: resetToken.id },
-      data: { usedAt: new Date() },
     }),
   ]);
 }

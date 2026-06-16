@@ -13,6 +13,7 @@ import { sendSuccess, sendError } from './shared/utils/response.util';
 import { authRouter } from './routes/auth.routes';
 import { sharingRouter } from './routes/sharing.routes';
 import { authenticate } from './middleware/auth.middleware';
+import { prisma } from './config/database';
 
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
 
@@ -70,22 +71,21 @@ app.get('/documents/:id', authenticate, async (req, res) => {
   const userId = req.user!.userId;
   const docId = req.params.id as string;
 
-  const hasAccess = await store.hasAccess(docId, userId);
-  if (!hasAccess) {
+  const meta = await store.getAccessibleMeta(docId, userId);
+  if (!meta) {
     sendError(res, 403, ErrorMessages.FORBIDDEN);
     return;
   }
 
-  const meta = await store.getMeta(docId);
-  if (!meta) {
+  const doc = await store.loadDoc(docId);
+  if (!doc) {
     sendError(res, 404, ErrorMessages.DOCUMENT_NOT_FOUND);
     return;
   }
 
-  const doc = await store.loadDoc(docId);
   sendSuccess(res, 200, SuccessMessages.DOCUMENT_RETRIEVED, {
     ...meta,
-    text: doc?.getText() ?? '',
+    text: doc.getText(),
     clients: store.getClientIds(docId),
   });
 });
@@ -120,6 +120,15 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 const httpServer = http.createServer(app);
 const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+void prisma.$connect()
+  .then(() => {
+    logger.info('Database connection pool warmed');
+  })
+  .catch((err) => {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn(`Database warm-up failed; first request may be slower: ${message}`);
+  });
 
 wss.on('connection', (ws) => {
   ws.on('message', (data) => {

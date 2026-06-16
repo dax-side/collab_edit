@@ -4,7 +4,7 @@ import { API_BASE_URL } from '../config';
 interface User {
   id: string;
   email: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 interface AuthContextType {
@@ -17,6 +17,7 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+const AUTH_BOOTSTRAP_SOFT_TIMEOUT_MS = 1200;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -24,19 +25,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    checkAuth();
+    const state = { cancelled: false };
+    void checkAuth(state);
+
+    return () => {
+      state.cancelled = true;
+    };
   }, []);
 
-  async function checkAuth() {
+  async function checkAuth(state: { cancelled: boolean }) {
+    let settled = false;
+    const softTimeoutId = window.setTimeout(() => {
+      if (!state.cancelled && !settled) {
+        setLoading(false);
+      }
+    }, AUTH_BOOTSTRAP_SOFT_TIMEOUT_MS);
+
     try {
       const res = await fetch(`${API_BASE_URL}/auth/me`, { credentials: 'include' });
-      if (res.ok) {
+      if (!state.cancelled && res.ok) {
         const data = await res.json();
         setUser(data.data.user);
       }
     } catch {
     } finally {
-      setLoading(false);
+      settled = true;
+      window.clearTimeout(softTimeoutId);
+
+      if (!state.cancelled) {
+        setLoading(false);
+      }
     }
   }
 

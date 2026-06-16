@@ -18,6 +18,17 @@ class DocumentStore {
   private crdtCache: Map<string, CRDTDocument> = new Map();
   private connections: Map<string, ConnectedClient[]> = new Map();
   private opQueues: Map<string, Promise<void>> = new Map();
+  private socketMembership: Map<WebSocket, { docId: string; clientId: string }> = new Map();
+
+  private detachSocket(ws: WebSocket): { docId: string; clientId: string } | undefined {
+    const existing = this.socketMembership.get(ws);
+    if (!existing) return undefined;
+
+    const clients = this.connections.get(existing.docId) ?? [];
+    this.connections.set(existing.docId, clients.filter(client => client.ws !== ws));
+    this.socketMembership.delete(ws);
+    return existing;
+  }
 
 
   async create(userId: string): Promise<DocumentMeta> {
@@ -64,16 +75,41 @@ class DocumentStore {
   }
 
   async list(userId: string): Promise<DocumentMeta[]> {
-    return prisma.document.findMany({
+    const [ownedDocs, sharedDocs] = await Promise.all([
+      prisma.document.findMany({
+        where: { ownerId: userId },
+        select: { id: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.document.findMany({
+        where: { access: { some: { userId } } },
+        select: { id: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const docsById = new Map<string, DocumentMeta>();
+    for (const doc of ownedDocs) docsById.set(doc.id, doc);
+    for (const doc of sharedDocs) {
+      if (!docsById.has(doc.id)) docsById.set(doc.id, doc);
+    }
+
+    return [...docsById.values()].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getAccessibleMeta(docId: string, userId: string): Promise<DocumentMeta | undefined> {
+    const doc = await prisma.document.findFirst({
       where: {
+        id: docId,
         OR: [
           { ownerId: userId },
           { access: { some: { userId } } },
         ],
       },
       select: { id: true, createdAt: true },
-      orderBy: { createdAt: 'desc' },
     });
+
+    return doc ?? undefined;
   }
 
   async delete(id: string): Promise<boolean> {
@@ -82,6 +118,11 @@ class DocumentStore {
       this.crdtCache.delete(id);
       this.connections.delete(id);
       this.opQueues.delete(id);
+      for (const [ws, membership] of this.socketMembership.entries()) {
+        if (membership.docId === id) {
+          this.socketMembership.delete(ws);
+        }
+      }
       return true;
     } catch {
       return false;
@@ -92,14 +133,23 @@ class DocumentStore {
     const doc = await this.loadDoc(docId);
     if (!doc) return false;
 
+    this.detachSocket(ws);
+
     const clients = this.connections.get(docId) ?? [];
-    const filtered = clients.filter(c => c.clientId !== clientId);
+    const filtered = clients.filter(c => c.clientId !== clientId && c.ws !== ws);
     filtered.push({ clientId, ws });
     this.connections.set(docId, filtered);
+    this.socketMembership.set(ws, { docId, clientId });
     return true;
   }
 
   async applyAndPersist(docId: string, op: Op): Promise<boolean> {
+    return this.applyAndPersistMany(docId, [op]);
+  }
+
+  async applyAndPersistMany(docId: string, ops: Op[]): Promise<boolean> {
+    if (ops.length === 0) return true;
+
     const prevQueue = this.opQueues.get(docId) ?? Promise.resolve();
 
     let resolveResult: (value: boolean) => void;
@@ -115,16 +165,19 @@ class DocumentStore {
           return;
         }
 
-        doc.apply(op);
-        await prisma.op.create({
-          data: {
+        for (const op of ops) {
+          doc.apply(op);
+        }
+
+        await prisma.op.createMany({
+          data: ops.map((op) => ({
             docId,
             op: JSON.parse(JSON.stringify(op)),
-          },
+          })),
         });
         resolveResult(true);
       } catch (err) {
-        logger.error(`Error processing op for doc ${docId}:`, err);
+        logger.error(`Error processing ${ops.length} ops for doc ${docId}:`, err);
         resolveResult(false);
       }
     });
@@ -135,17 +188,12 @@ class DocumentStore {
   }
 
   leave(ws: WebSocket): { docId: string; clientId: string }[] {
-    const removed: { docId: string; clientId: string }[] = [];
-    for (const [docId, clients] of this.connections.entries()) {
-      const before = clients.length;
-      const after = clients.filter(c => c.ws !== ws);
-      if (after.length !== before) {
-        const leaving = clients.find(c => c.ws === ws);
-        if (leaving) removed.push({ docId, clientId: leaving.clientId });
-        this.connections.set(docId, after);
-      }
-    }
-    return removed;
+    const removed = this.detachSocket(ws);
+    return removed ? [removed] : [];
+  }
+
+  getClientBySocket(ws: WebSocket): { docId: string; clientId: string } | undefined {
+    return this.socketMembership.get(ws);
   }
 
   getClients(docId: string): ConnectedClient[] {

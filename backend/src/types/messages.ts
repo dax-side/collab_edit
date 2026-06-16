@@ -12,13 +12,19 @@ export interface OpMessage {
   op: Op;
 }
 
+export interface OpsMessage {
+  type: 'ops';
+  docId: string;
+  ops: Op[];
+}
+
 export interface CursorMessage {
   type: 'cursor';
   docId: string;
   position: number;
 }
 
-export type ClientMessage = JoinMessage | OpMessage | CursorMessage;
+export type ClientMessage = JoinMessage | OpMessage | OpsMessage | CursorMessage;
 
 
 export interface InitMessage {
@@ -32,6 +38,13 @@ export interface ServerOpMessage {
   docId: string;
   op: Op; 
   clientId: string; 
+}
+
+export interface ServerOpsMessage {
+  type: 'ops';
+  docId: string;
+  ops: Op[];
+  clientId: string;
 }
 
 export interface ServerCursorMessage {
@@ -55,6 +68,7 @@ export interface ErrorMessage {
 export type ServerMessage =
   | InitMessage
   | ServerOpMessage
+  | ServerOpsMessage
   | ServerCursorMessage
   | PresenceMessage
   | ErrorMessage;

@@ -80,7 +80,6 @@ export async function inviteUser(
   });
 
   if (inviter) {
-    // Do not block the invite API response on SMTP latency.
     void sendInviteEmail(email, inviter.email, docId)
       .then((sent) => {
         if (!sent) {

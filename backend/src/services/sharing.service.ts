@@ -3,6 +3,7 @@ import { prisma } from '../config/database';
 import { store } from '../store/document.store';
 import { sendInviteEmail } from './email.service';
 import { ErrorMessages } from '../shared/messages';
+import { logger } from '../shared/utils/logger';
 
 export class SharingServiceError extends Error {
   constructor(public statusCode: number, message: string) {
@@ -79,7 +80,16 @@ export async function inviteUser(
   });
 
   if (inviter) {
-    await sendInviteEmail(email, inviter.email, docId);
+    // Do not block the invite API response on SMTP latency.
+    void sendInviteEmail(email, inviter.email, docId)
+      .then((sent) => {
+        if (!sent) {
+          logger.warn(`Invite email was not sent to ${email} for doc ${docId}`);
+        }
+      })
+      .catch((err) => {
+        logger.error(`Unexpected invite email error for ${email} (doc ${docId}):`, err);
+      });
   }
 
   return { access };

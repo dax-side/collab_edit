@@ -13,7 +13,7 @@ export class CRDTDocument {
 
     const insertionIndex = this.findInsertionIndex(op.char);
     this.chars.splice(insertionIndex, 0, { ...op.char });
-    this.rebuildIndex();
+    this.reindexFrom(insertionIndex);
     this.ops.push(op);
   }
 
@@ -73,9 +73,8 @@ export class CRDTDocument {
     return i;
   }
 
-  private rebuildIndex(): void {
-    this.idIndex.clear();
-    for (let i = 0; i < this.chars.length; i++) {
+  private reindexFrom(start: number): void {
+    for (let i = start; i < this.chars.length; i++) {
       this.idIndex.set(charIdKey(this.chars[i].id), i);
     }
   }

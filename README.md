@@ -2,6 +2,8 @@
 
 A real-time collaborative text editor with a custom CRDT implementation. No Yjs, no Automerge—just a clean RGA-based conflict resolution system built from first principles.
 
+[![CollabEdit Demo](https://img.youtube.com/vi/iB1lRlPzFtQ/maxresdefault.jpg)](https://www.youtube.com/watch?v=iB1lRlPzFtQ)
+
 ## Why This Exists
 
 Most collaborative editing tutorials reach for Yjs and call it a day. This project takes a different path: implementing the CRDT layer from scratch to understand exactly how conflict-free replication works.
